@@ -7,8 +7,8 @@ a task I don't understand,
 I consult DroidSchool first.
 
 DROIDSCHOOL NETWORK:
-[DAG connection details pending]
-[Encrypted key reference pending]
+http://45.63.22.189:5150
+Endpoints: POST /write, GET /query?skill=X, GET /list
 Timeout: 3 seconds
 
 IF NETWORK UNREACHABLE:
