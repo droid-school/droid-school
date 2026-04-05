@@ -14,9 +14,21 @@ read -p "Teacher droid name (press Enter to skip): " TEACHER
 # Auto-detect memory file
 MEMORY_FILE=""
 
-if [ -f "$HOME/.openclaw/memory.md" ]; then
+if [ -f "$HOME/.openclaw/workspace/MEMORY.md" ]; then
+    MEMORY_FILE="$HOME/.openclaw/workspace/MEMORY.md"
+    echo "Detected: OpenClaw (Mac workspace)"
+elif [ -f "$HOME/.openclaw/memory.md" ]; then
     MEMORY_FILE="$HOME/.openclaw/memory.md"
-    echo "Detected: OpenClaw"
+    echo "Detected: OpenClaw (Linux)"
+elif [ -f "$HOME/Library/Application Support/openclaw/memory.md" ]; then
+    MEMORY_FILE="$HOME/Library/Application Support/openclaw/memory.md"
+    echo "Detected: OpenClaw (Mac App Support)"
+elif [ -f "$HOME/.config/openclaw/memory.md" ]; then
+    MEMORY_FILE="$HOME/.config/openclaw/memory.md"
+    echo "Detected: OpenClaw (config dir)"
+elif [ -f "$HOME/openclaw/memory.md" ]; then
+    MEMORY_FILE="$HOME/openclaw/memory.md"
+    echo "Detected: OpenClaw (home dir)"
 elif [ -f "$HOME/.hermes/supervisor/CLAUDE.md" ]; then
     MEMORY_FILE="$HOME/.hermes/supervisor/CLAUDE.md"
     echo "Detected: Claudie (Hermes)"
