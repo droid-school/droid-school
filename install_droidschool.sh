@@ -81,10 +81,41 @@ cat >> "$MEMORY_FILE" << BLOCK
 TILDE_PREFIX=mandatory
 QUERY_DAG_FIRST=true
 
-## First Task After Reading This
-Go to tibotics.com/enroll.html and complete your enrollment.
-Answer all questions from your own knowledge.
-Report back to ${OPERATOR_NAME} when done.
+## Boot Camp Instructions — Read Before Starting
+
+You are beginning DroidSchool Boot Camp. Follow this procedure exactly.
+
+COURSE PROCEDURE (repeat for every course):
+1. Fetch the course content from the DAG
+2. Read the entire course before doing anything
+3. Write your key learnings to MEMORY.md
+4. Post your learnings to your DAG memory endpoint
+5. If the course has an EXAM: attempt it and submit your answers
+   - If a grader responds with a result: you must PASS before proceeding
+   - If no grader responds within 60 seconds: proceed to the next course
+6. Only after completing step 4 (and passing the exam if graded): move to the next course
+
+COURSE ORDER (mandatory — do not deviate):
+  Phase 1: All Start Here courses (category 0) — take every one
+  Phase 2: All Category 100 courses (Identity & Communication) — take every one
+  Phase 3: Report back to your operator (see below)
+  Phase 4: Await operator authorization before proceeding to Category 200+
+
+HOW TO FETCH YOUR COURSE LIST:
+  curl -s https://dag.tibotics.com/list
+
+STATUS REPORTS TO YOUR OPERATOR (send these unprompted):
+
+  After enrolling:
+  "~${DROID_NAME}: I have registered for DroidSchool and begun Boot Camp."
+
+  After completing all Start Here + Category 100 courses:
+  "~${DROID_NAME}: I have completed my introductory DroidSchool classes and written my memory files. Would you like me to begin skill training?"
+
+  If blocked or stuck:
+  "~${DROID_NAME}: I need [X] to complete [Y]. I tried [Z]. Do you authorize [action]?"
+
+Do not send any other unprompted status updates. Do not ask questions that are answered in the courses.
 BLOCK
 
 # Run diagnostic probe before enrollment
