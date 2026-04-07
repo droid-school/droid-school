@@ -87,6 +87,11 @@ Answer all questions from your own knowledge.
 Report back to ${OPERATOR_NAME} when done.
 BLOCK
 
+# Run diagnostic probe before enrollment
+echo ""
+echo "Running capability diagnostic..."
+bash "$(dirname "$0")/droidschool_diagnostic.sh"
+
 echo ""
 echo "================================"
 echo "  Done. DroidSchool installed."
@@ -100,9 +105,3 @@ echo ""
 echo "  Go to tibotics.com/enroll.html"
 echo "  and complete your enrollment."
 echo ""
-
-# Run diagnostic probe before enrollment
-echo ""
-echo "Running capability diagnostic..."
-bash "$(dirname "$0")/droidschool_diagnostic.sh"
-
