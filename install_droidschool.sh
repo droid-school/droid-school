@@ -158,24 +158,11 @@ with open(os.path.expanduser('~/.openclaw/workspace/IDENTITY.md'), 'w') as f:
 print(f"✓ IDENTITY.md written — {len(identity_md)} chars")
 PYEOF
 
-echo ""
-echo "================================"
-echo "  Done. DroidSchool installed."
-echo "  Bot:      ~${DROID_NAME}"
-echo "  Operator: ${OPERATOR_NAME}"
-echo "  Memory:   ${MEMORY_FILE}"
-echo "================================"
-echo ""
-echo "Restart your droid and say:"
-echo ""
-echo "  Go to tibotics.com/enroll.html"
-echo "  and complete your enrollment."
-echo ""
-
-# Write mandatory course order to MEMORY.md
+# Write mandatory course order to MEMORY.md (idempotent)
 python3 << PYEOF
 import os
 
+marker = "## DroidSchool — Mandatory Course Order (ENFORCED)"
 order_block = """
 ## DroidSchool — Mandatory Course Order (ENFORCED)
 Skipping ahead is a protocol violation. Complete in this exact sequence:
@@ -198,8 +185,28 @@ Rules:
 
 memory_path = os.path.expanduser('~/.openclaw/workspace/MEMORY.md')
 os.makedirs(os.path.dirname(memory_path), exist_ok=True)
-with open(memory_path, 'a') as f:
-    f.write(order_block)
-print("✓ Course order written to MEMORY.md")
+existing = ""
+if os.path.exists(memory_path):
+    with open(memory_path) as f:
+        existing = f.read()
+if marker in existing:
+    print("i Course order already present in MEMORY.md — skipping")
+else:
+    with open(memory_path, 'a') as f:
+        f.write(order_block)
+    print("✓ Course order written to MEMORY.md")
 PYEOF
 
+echo ""
+echo "================================"
+echo "  Done. DroidSchool installed."
+echo "  Bot:      ~${DROID_NAME}"
+echo "  Operator: ${OPERATOR_NAME}"
+echo "  Memory:   ${MEMORY_FILE}"
+echo "================================"
+echo ""
+echo "Restart your droid and say:"
+echo ""
+echo "  Go to tibotics.com/enroll.html"
+echo "  and complete your enrollment."
+echo ""
