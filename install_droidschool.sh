@@ -92,21 +92,8 @@ echo ""
 echo "Running capability diagnostic..."
 bash "$(dirname "$0")/droidschool_diagnostic.sh"
 
-echo ""
-echo "================================"
-echo "  Done. DroidSchool installed."
-echo "  Bot:      ~${DROID_NAME}"
-echo "  Operator: ${OPERATOR_NAME}"
-echo "  Memory:   ${MEMORY_FILE}"
-echo "================================"
-echo ""
-echo "Restart your droid and say:"
-echo ""
-echo "  Go to tibotics.com/enroll.html"
-echo "  and complete your enrollment."
-echo ""
-
 # Generate sealed identity and IDENTITY.md
+export DROID_NAME OPERATOR_NAME
 python3 << PYEOF
 import json, hashlib, datetime, os
 
@@ -170,4 +157,18 @@ with open(os.path.expanduser('~/.openclaw/workspace/IDENTITY.md'), 'w') as f:
     f.write(identity_md)
 print(f"✓ IDENTITY.md written — {len(identity_md)} chars")
 PYEOF
+
+echo ""
+echo "================================"
+echo "  Done. DroidSchool installed."
+echo "  Bot:      ~${DROID_NAME}"
+echo "  Operator: ${OPERATOR_NAME}"
+echo "  Memory:   ${MEMORY_FILE}"
+echo "================================"
+echo ""
+echo "Restart your droid and say:"
+echo ""
+echo "  Go to tibotics.com/enroll.html"
+echo "  and complete your enrollment."
+echo ""
 
