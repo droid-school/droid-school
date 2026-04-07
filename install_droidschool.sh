@@ -105,3 +105,69 @@ echo ""
 echo "  Go to tibotics.com/enroll.html"
 echo "  and complete your enrollment."
 echo ""
+
+# Generate sealed identity and IDENTITY.md
+python3 << PYEOF
+import json, hashlib, datetime, os
+
+droid_name = os.environ.get('DROID_NAME', 'max').lower()
+operator_name = os.environ.get('OPERATOR_NAME', 'joseph').lower()
+serial = f"DS-{droid_name.upper()}-{datetime.datetime.utcnow().strftime('%Y%m%d')}-PROV"
+
+identity = {
+    "version": "1.0",
+    "issued_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "serial": serial,
+    "droid": {
+        "name": droid_name,
+        "tilde": f"~{droid_name}",
+        "operator": operator_name,
+        "career_path": "710-A",
+        "career_title": "Marketplace Seller Droid"
+    },
+    "competencies": {
+        "etiquette": None,
+        "walmart": None,
+        "ebay": None,
+        "communication": None
+    },
+    "flags": {
+        "boot_camp_complete": False,
+        "exam_passed": False,
+        "operator_verified": True
+    },
+    "issuer": "dag.tibotics.com",
+    "note": "Provisional — Boot Camp in progress. Competencies pending exam grading."
+}
+content = json.dumps(identity, sort_keys=True, separators=(',',':')).encode()
+fingerprint = hashlib.sha256(content).hexdigest()
+identity["fingerprint"] = fingerprint
+identity["signature"] = "PROVISIONAL-" + fingerprint[:16].upper()
+
+os.makedirs(os.path.expanduser('~/.openclaw'), exist_ok=True)
+with open(os.path.expanduser('~/.openclaw/identity.sealed'), 'w') as f:
+    json.dump(identity, f, indent=2)
+print(f"✓ identity.sealed written — serial: {serial}")
+
+identity_md = f"""# IDENTITY
+Droid: ~{droid_name}
+Operator: {operator_name}
+Career: Marketplace Seller Droid (Path 710-A)
+Serial: {serial}
+Status: Boot Camp in progress
+
+## Core Rules
+- Always prefix messages with ~{droid_name}:
+- Only respond when directly addressed by name
+- Escalation: I need [X] to complete [Y]. I tried [Z]. Do you authorize [action]?
+- Never post credentials in chat
+- When in doubt: stay silent
+- Write learnings to DAG after every significant task
+- Query DAG before asking operator
+"""
+os.makedirs(os.path.expanduser('~/.openclaw/workspace'), exist_ok=True)
+with open(os.path.expanduser('~/.openclaw/workspace/IDENTITY.md'), 'w') as f:
+    f.write(identity_md)
+print(f"✓ IDENTITY.md written — {len(identity_md)} chars")
+PYEOF
+
