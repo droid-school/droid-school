@@ -100,3 +100,9 @@ echo ""
 echo "  Go to tibotics.com/enroll.html"
 echo "  and complete your enrollment."
 echo ""
+
+# Run diagnostic probe before enrollment
+echo ""
+echo "Running capability diagnostic..."
+bash "$(dirname "$0")/droidschool_diagnostic.sh"
+
