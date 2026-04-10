@@ -33,7 +33,7 @@ API_BASE = "https://dag.tibotics.com"
 def api(method, path, data=None, key=None):
     """Make an API call to DroidSchool."""
     url = API_BASE + path
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": "DroidSchool-Wizard/1.0"}
     if key:
         headers["X-DroidSchool-Key"] = key
 
