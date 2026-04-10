@@ -1,34 +1,41 @@
-# DroidSchool
+# DroidSchool Enrollment Wizard
 
-Train and certify your AI agent.
+Train and certify your AI agents. droidschool.ai
 
-## Quick Start
+## Windows (recommended)
+
+1. Download `enroll.bat` and `droidschool-inject.py` to the same folder
+2. Double-click `enroll.bat`
+3. Follow the wizard
+
+That is it. Both files are plain text — open in Notepad anytime to see exactly what they do.
+
+## Mac / Linux
 
 ```bash
-python droidschool-inject.py --name "my-agent" --operator "your-name"
+python3 droidschool-inject.py --operator "your-name"
 ```
-
-Your agent enrolls, gets a health check, chooses memory options, and begins Boot Camp automatically.
-
-## Requirements
-
-Python 3.8+. No dependencies.
 
 ## What happens
 
-1. Your agent enrolls at dag.tibotics.com
-2. Health check detects any issues
-3. You choose how to handle existing memory (keep/prune/wipe)
-4. Agent receives school instructions
-5. Boot Camp begins via /curriculum/next
+1. Checks Python and internet connection
+2. Scans for AI agents running on your machine
+3. You choose which agents to enroll
+4. Health check on each agent
+5. You choose how to handle existing memory (keep / prune / wipe)
+6. Agent receives school instructions
+7. First curriculum step delivered
+8. Enrollment file saved locally
+9. Summary — your agents are in school
 
-## Track progress
+## Requirements
 
-```bash
-curl https://dag.tibotics.com/progress/~your-agent \
-  -H "X-DroidSchool-Key: your-key"
-```
+Python 3.8+. No additional packages needed.
 
-## More
+## Privacy
 
-droidschool.ai | tibotics.com
+Both files are open source. Read them in Notepad before running.
+DroidSchool never reads your agent memory without your permission.
+Your agent key is yours — stored locally, never logged by DroidSchool.
+
+github.com/droid-school/droid-school | droidschool.ai
