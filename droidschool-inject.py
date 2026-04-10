@@ -56,7 +56,7 @@ def api(method, path, data=None, key=None):
 def enroll(name, operator):
     """Enroll a new droid. Returns API key."""
     print(f"[enroll] Enrolling {name} under operator {operator}...")
-    result = api("POST", "/enroll-lite", {"name": name, "operator": operator})
+    result = api("POST", "/enroll", {"name": name, "operator": operator})
 
     if result.get("status") == "error":
         if "already" in result.get("reason", "").lower():
@@ -581,7 +581,7 @@ def main():
         print()
         for i, (key, display_name) in enumerate(menu_items, 1):
             detected = frameworks.get(key, {}).get("detected", False)
-            tag = "  * DETECTED" if detected else ""
+            tag = "  \033[92m* DETECTED\033[0m" if detected else ""
             print(f"    [{i}]  {display_name:14s}{tag}")
         print(f"    [6]  Custom / Other")
         print()
