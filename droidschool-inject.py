@@ -190,6 +190,67 @@ def detect_frameworks(host="localhost"):
     except:
         processes = ""
 
+    # Build WSL paths for Windows machines
+    wsl_hermes_dirs = []
+    wsl_hermes_identity = []
+    wsl_session_names = []
+    if sys.platform == "win32":
+        try:
+            wsl_home = subprocess.check_output(
+                ["wsl", "bash", "-c", "echo $HOME"],
+                text=True, timeout=5
+            ).strip()
+            if wsl_home:
+                # Try listing sessions directly via WSL
+                try:
+                    wsl_sessions = subprocess.check_output(
+                        ["wsl", "bash", "-c", "ls -d ~/.hermes/whatsapp/session* 2>/dev/null || true"],
+                        text=True, timeout=5
+                    ).strip()
+                    for line in wsl_sessions.split("\n"):
+                        line = line.strip()
+                        if not line:
+                            continue
+                        sname = os.path.basename(line).replace("session-", "").replace("session", "")
+                        if sname:
+                            wsl_session_names.append(sname)
+                        elif os.path.basename(line) == "session":
+                            wsl_session_names.append("claudie")
+                except:
+                    pass
+                # Try reading SOUL.md via WSL
+                try:
+                    wsl_soul = subprocess.check_output(
+                        ["wsl", "bash", "-c", "cat ~/.hermes/whatsapp/session*/SOUL.md 2>/dev/null || true"],
+                        text=True, timeout=5
+                    ).strip()
+                    if wsl_soul:
+                        import re as _re
+                        for m in _re.finditer(r"you are ~(\w+)", wsl_soul, _re.IGNORECASE):
+                            if m.group(1).lower() not in [s.lower() for s in wsl_session_names]:
+                                wsl_session_names.append(m.group(1))
+                except:
+                    pass
+                # Check if .hermes exists in WSL
+                try:
+                    wsl_check = subprocess.check_output(
+                        ["wsl", "bash", "-c", "test -d ~/.hermes && echo yes || echo no"],
+                        text=True, timeout=5
+                    ).strip()
+                    if wsl_check == "yes":
+                        wsl_hermes_dirs.append("(WSL) " + wsl_home + "/.hermes")
+                except:
+                    pass
+        except:
+            pass
+        # Also check common Windows-accessible WSL mount paths
+        username = os.environ.get("USERNAME", "").lower()
+        for user in [username, "josep", "joseph"]:
+            if user:
+                wsl_mount = os.path.join("\\\\wsl$\\Ubuntu\\home", user, ".hermes")
+                if os.path.isdir(wsl_mount):
+                    wsl_hermes_dirs.append(wsl_mount)
+
     frameworks = {
         "openclaw": {
             "name": "OpenClaw",
@@ -207,14 +268,15 @@ def detect_frameworks(host="localhost"):
         },
         "hermes": {
             "name": "Hermes",
-            "detected": False,
-            "agents": [],
+            "detected": bool(wsl_session_names) or bool(wsl_hermes_dirs),
+            "agents": ["~" + s for s in wsl_session_names],
             "process_hints": ["hermes", "supervisor.py", "sasha_runner"],
             "config_dirs": [
                 os.path.join(home, ".hermes"),
-            ],
+            ] + wsl_hermes_dirs,
             "identity_files": glob.glob(os.path.join(home, ".hermes", "supervisor", "*.py"))
-                + glob.glob(os.path.join(home, ".hermes", "whatsapp", "session*", "SOUL.md")),
+                + glob.glob(os.path.join(home, ".hermes", "whatsapp", "session*", "SOUL.md"))
+                + wsl_hermes_identity,
         },
         "langchain": {
             "name": "LangChain",
