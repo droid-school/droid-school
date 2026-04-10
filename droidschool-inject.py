@@ -254,16 +254,113 @@ def scan_for_agents(host="localhost"):
 
 
 def extract_agent_names(scan_results):
-    """Extract unique agent names from scan results."""
-    names = set()
-    for result in scan_results:
-        if "name" in result:
-            names.add(result["name"])
-        elif result.get("label"):
-            # Suggest a name based on the platform
-            label = result["label"].lower().replace(" ", "-")
-            names.add("~" + label)
-    return sorted(names)
+    """
+    Extract actual agent names from scan results.
+    Reads identity files from known frameworks before falling back to generic names.
+    """
+    import re
+
+    names = []
+    seen = set()
+
+    def add(name):
+        clean = name.strip().lstrip("~").lower()
+        if clean and clean not in seen and clean not in ("agent", "droid", "assistant", "bot", "ai"):
+            seen.add(clean)
+            names.append("~" + clean)
+
+    def read_identity_from_files(paths, patterns):
+        """Search files for ~name pattern."""
+        for path_pattern in paths:
+            for filepath in glob.glob(os.path.expanduser(path_pattern)):
+                try:
+                    content = open(filepath, encoding="utf-8", errors="ignore").read()
+                    for pattern in patterns:
+                        m = re.search(pattern, content, re.IGNORECASE | re.MULTILINE)
+                        if m:
+                            return m.group(1).strip()
+                except:
+                    pass
+        return None
+
+    identity_patterns_re = [
+        r"you are ~(\w+)",
+        r"i am ~(\w+)",
+        r"name[:\s]+~(\w+)",
+        r"~(\w+)[,\s].*droid",
+    ]
+
+    for r in scan_results:
+        source = r.get("source", "")
+        raw_name = r.get("name", "")
+        label = r.get("label", "").lower()
+
+        # Hermes / OpenClaw — read SOUL.md or IDENTITY.md
+        if any(k in label for k in ("hermes", "openclaw")) or any(k in source for k in ("identity",)):
+            identity_paths = [
+                "~/.hermes/whatsapp/session*/SOUL.md",
+                "~/.openclaw/workspace/SOUL.md",
+                "~/.openclaw/workspace/IDENTITY.md",
+                "~/Library/Application Support/OpenClaw/workspace/SOUL.md",
+            ]
+            found = read_identity_from_files(identity_paths, identity_patterns_re)
+            if found:
+                add(found)
+                continue
+            # Fall back to session folder names
+            for session in glob.glob(os.path.expanduser("~/.hermes/whatsapp/session*")):
+                session_name = os.path.basename(session).replace("session-", "").replace("session", "")
+                if session_name:
+                    add(session_name)
+
+        # LM Studio — query model list
+        elif "lm studio" in label:
+            try:
+                req = urllib.request.Request("http://localhost:1234/v1/models",
+                                            headers={"User-Agent": "DroidSchool/1.0"})
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    data = json.loads(resp.read())
+                    models = data.get("data", [])
+                    if models:
+                        short = models[0].get("id", "lm-studio-agent").split("/")[-1].split("-")[0]
+                        add(short or "lm-studio-agent")
+                        continue
+            except:
+                pass
+            add(raw_name or "lm-studio-agent")
+
+        # Ollama — query model tags
+        elif "ollama" in label:
+            try:
+                req = urllib.request.Request("http://localhost:11434/api/tags",
+                                            headers={"User-Agent": "DroidSchool/1.0"})
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    data = json.loads(resp.read())
+                    models = data.get("models", [])
+                    if models:
+                        add(models[0].get("name", "ollama-agent").split(":")[0])
+                        continue
+            except:
+                pass
+            add(raw_name or "ollama-agent")
+
+        # Claude Code — read CLAUDE.md
+        elif "claude" in label:
+            found = read_identity_from_files(
+                ["~/.claude/CLAUDE.md", "~/.claude/settings.json"],
+                [r"name[\":\s]+[\"~]?(\w+)", r"you are ~?(\w+)"]
+            )
+            add(found if found else (raw_name or "claude-agent"))
+
+        # Named agents from identity files
+        elif raw_name:
+            add(raw_name)
+
+        # Generic fallback from label
+        elif label:
+            add(label.replace(" ", "-"))
+
+    return names if names else ["~" + r.get("label", "unknown").lower().replace(" ", "-") for r in scan_results[:3]]
 
 
 def inject_single(name, operator, key, memory_strategy, auto_mode):
