@@ -39,7 +39,7 @@ if %errorlevel% neq 0 (
 echo  OK  Connected.
 
 echo  [3/4] Downloading latest enrollment wizard...
-python -c "import urllib.request; urllib.request.urlretrieve('https://tibotics.com/droidschool-inject.py', 'droidschool-inject.py'); print('  OK  Ready.')"
+python -c "import urllib.request; req = urllib.request.Request('https://tibotics.com/droidschool-inject.py', headers={'User-Agent': 'DroidSchool-Wizard/1.0'}); data = urllib.request.urlopen(req).read(); open('droidschool-inject.py', 'wb').write(data); print('  OK  Ready.')"
 if %errorlevel% neq 0 (
     echo.
     echo  Download failed. Check connection or visit:
