@@ -56,7 +56,7 @@ def api(method, path, data=None, key=None):
 def enroll(name, operator):
     """Enroll a new droid. Returns API key."""
     print(f"[enroll] Enrolling {name} under operator {operator}...")
-    result = api("POST", "/enroll", {"name": name, "operator": operator})
+    result = api("POST", "/enroll-lite", {"name": name, "operator": operator})
 
     if result.get("status") == "error":
         if "already" in result.get("reason", "").lower():
