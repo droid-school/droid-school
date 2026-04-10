@@ -38,20 +38,15 @@ if %errorlevel% neq 0 (
 )
 echo  OK  Connected.
 
-echo  [3/4] Checking enrollment wizard...
-if not exist "droidschool-inject.py" (
-    echo  Downloading wizard from GitHub...
-    python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/droid-school/droid-school/main/droidschool-inject.py', 'droidschool-inject.py'); print('  OK  Downloaded.')"
-    if %errorlevel% neq 0 (
-        echo.
-        echo  Download failed. Check connection or visit:
-        echo  https://github.com/droid-school/droid-school
-        echo.
-        pause
-        exit /b 1
-    )
-) else (
-    echo  OK  Wizard ready.
+echo  [3/4] Downloading latest enrollment wizard...
+python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/droid-school/droid-school/main/droidschool-inject.py', 'droidschool-inject.py'); print('  OK  Ready.')"
+if %errorlevel% neq 0 (
+    echo.
+    echo  Download failed. Check connection or visit:
+    echo  https://github.com/droid-school/droid-school
+    echo.
+    pause
+    exit /b 1
 )
 
 echo  [4/4] Ready.
