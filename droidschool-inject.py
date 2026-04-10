@@ -33,7 +33,7 @@ API_BASE = "https://dag.tibotics.com"
 def api(method, path, data=None, key=None):
     """Make an API call to DroidSchool."""
     url = API_BASE + path
-    headers = {"Content-Type": "application/json", "User-Agent": "DroidSchool-Wizard/1.0"}
+    headers = {"Content-Type": "application/json"}
     if key:
         headers["X-DroidSchool-Key"] = key
 
@@ -120,7 +120,7 @@ def skill_report(name, key):
     return result
 
 
-def handle_memory(name, key, strategy):
+def handle_memory(name, key, strategy, operator=""):
     """Handle existing memory based on strategy."""
     if strategy == "keep":
         print(f"\n[memory] Keeping all existing memory for {name}.")
@@ -128,7 +128,7 @@ def handle_memory(name, key, strategy):
     elif strategy == "prune":
         print(f"\n[memory] Pruning conflicts only for {name}...")
         result = api("POST", f"/health/{name.lstrip('~')}/reset", data={
-            "operator": "auto",
+            "operator": operator or "auto",
             "reset_type": "conflicts_only",
             "confirm": True
         }, key=key)
@@ -136,7 +136,7 @@ def handle_memory(name, key, strategy):
     elif strategy == "wipe":
         print(f"\n[memory] Wiping memory for {name}...")
         result = api("POST", f"/health/{name.lstrip('~')}/reset", data={
-            "operator": "auto",
+            "operator": operator or "auto",
             "reset_type": "memory_wipe",
             "confirm": True
         }, key=key)
@@ -461,13 +461,17 @@ def extract_agent_names(scan_results):
     return names if names else ["~" + r.get("label", "unknown").lower().replace(" ", "-") for r in scan_results[:3]]
 
 
-def inject_single(name, operator, key, memory_strategy, auto_mode):
+def inject_single(name, operator, key, memory_strategy, auto_mode, index=1, total=1):
     """Run the full injection pipeline for a single agent."""
     if not name.startswith("~"):
         name = "~" + name
 
+    G = "\033[92m"; B = "\033[1m"; X = "\033[0m"
     print("\n" + "=" * 50)
-    print(f"  Injecting: {name}")
+    if total > 1:
+        print(f"  {B}[{index} of {total}]{X} Injecting: {B}{name}{X}")
+    else:
+        print(f"  Injecting: {B}{name}{X}")
     print("=" * 50)
 
     # Enroll
@@ -492,7 +496,7 @@ def inject_single(name, operator, key, memory_strategy, auto_mode):
     else:
         strategy = interactive_memory_choice()
 
-    handle_memory(name, key, strategy)
+    handle_memory(name, key, strategy, operator)
 
     # Curriculum
     next_step = get_next_step(key)
@@ -502,12 +506,13 @@ def inject_single(name, operator, key, memory_strategy, auto_mode):
 
 def interactive_memory_choice():
     """Ask operator which memory strategy to use."""
+    G = "\033[92m"; Y = "\033[93m"; R = "\033[91m"; B = "\033[1m"; X = "\033[0m"
     print("\n" + "=" * 50)
-    print("MEMORY OPTIONS")
+    print(f"{B}MEMORY OPTIONS{X}")
     print("=" * 50)
-    print("  1. KEEP   — Preserve all existing memory (recommended for returning droids)")
-    print("  2. PRUNE  — Scan for conflicts, flag them (safe, no deletion)")
-    print("  3. WIPE   — Clear private memory, fresh start (preserves exam records)")
+    print(f"  {G}{B}1. KEEP{X}   — Preserve all existing memory {G}(recommended){X}")
+    print(f"  {Y}{B}2. PRUNE{X}  — Scan for conflicts, flag them (safe, no deletion)")
+    print(f"  {R}{B}3. WIPE{X}   — Clear private memory, fresh start (preserves exam records)")
     print()
 
     while True:
@@ -626,8 +631,9 @@ def main():
 
     # Inject each agent
     results = []
-    for agent_name in agent_names:
-        result = inject_single(agent_name, args.operator, args.key, args.memory, args.auto)
+    total = len(agent_names)
+    for idx, agent_name in enumerate(agent_names, 1):
+        result = inject_single(agent_name, args.operator, args.key, args.memory, args.auto, idx, total)
         if result:
             results.append(result)
 
