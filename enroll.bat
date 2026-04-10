@@ -53,7 +53,7 @@ echo  [4/4] Ready.
 echo.
 echo  ============================================================
 echo.
-set /p OPERATOR="  Your name or organization: "
+set /p OPERATOR="  Name or organization of designated operator: "
 if "%OPERATOR%"=="" (
     echo  Name required. Please try again.
     pause
