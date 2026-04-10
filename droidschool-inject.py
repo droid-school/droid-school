@@ -140,10 +140,18 @@ def handle_memory(name, key, strategy, operator=""):
             "reset_type": "memory_wipe",
             "confirm": True
         }, key=key)
+        status = result.get("status", "unknown")
         actions = result.get("actions_taken", [])
-        for a in actions:
-            print(f"  - {a}")
-        print(f"[memory] Result: {result.get('status', 'unknown')}")
+        if status == "ok":
+            if actions:
+                for a in actions:
+                    print(f"  - {a}")
+            else:
+                print("[memory] No memory files found — clean slate.")
+            print("[memory] Done.")
+        else:
+            reason = result.get("reason", result.get("message", "unknown"))
+            print(f"[memory] Note: {reason}")
 
 
 def get_next_step(key):
