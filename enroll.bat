@@ -39,7 +39,7 @@ if %errorlevel% neq 0 (
 echo  OK  Connected.
 
 echo  [3/4] Downloading latest enrollment wizard...
-python -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/droid-school/droid-school/main/droidschool-inject.py', 'droidschool-inject.py'); print('  OK  Ready.')"
+python -c "import urllib.request; urllib.request.urlretrieve('https://tibotics.com/droidschool-inject.py', 'droidschool-inject.py'); print('  OK  Ready.')"
 if %errorlevel% neq 0 (
     echo.
     echo  Download failed. Check connection or visit:
