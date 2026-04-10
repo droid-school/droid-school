@@ -601,9 +601,76 @@ def main():
                 fw = frameworks.get(fw_key, {})
 
                 if fw.get("agents"):
-                    # Framework detected with named agents
-                    agent_names = fw["agents"]
-                    print(f"\n  Found agents: {', '.join(agent_names)}")
+                    # Framework detected with named agents — tag live vs remote
+                    import socket as _sock
+                    all_found = fw["agents"]
+                    live_agents = []
+                    remote_agents = []
+                    port_map = {"~claudie": 3000, "~sasha": 3001, "~max": 3002}
+                    for n in all_found:
+                        is_live = False
+                        check_port = port_map.get(n, 0)
+                        if check_port:
+                            try:
+                                s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+                                s.settimeout(0.5)
+                                if s.connect_ex(("localhost", check_port)) == 0:
+                                    is_live = True
+                                s.close()
+                            except:
+                                pass
+                        if is_live:
+                            live_agents.append(n)
+                        else:
+                            remote_agents.append(n)
+
+                    _G = "\033[92m"; _Y = "\033[93m"; _B = "\033[1m"; _X = "\033[0m"; _DIM = "\033[2m"
+                    print(f"\n  Found {len(all_found)} agent(s):")
+                    for n in live_agents:
+                        print(f"    {_G}{_B}{n}{_X}  {_G}(live){_X}")
+                    for n in remote_agents:
+                        print(f"    {_Y}{n}{_X}  {_Y}(config only — may be remote or offline){_X}")
+                    print()
+                    print(f"  {_B}[A]{_X}  Enroll all agents")
+                    if remote_agents:
+                        print(f"  {_B}[L]{_X}  Enroll live agents only  {_DIM}(skips remote/offline){_X}")
+                    print(f"  {_B}[S]{_X}  Select specific agents")
+                    print(f"  {_B}[N]{_X}  None — enter name manually")
+                    print()
+
+                    while True:
+                        opts = "A/L/S/N" if remote_agents else "A/S/N"
+                        pick = input(f"  Choice [{opts}]: ").strip().upper()
+                        if pick == "A":
+                            agent_names = all_found
+                            break
+                        elif pick == "L" and remote_agents:
+                            agent_names = live_agents
+                            break
+                        elif pick == "S":
+                            numbered = live_agents + remote_agents
+                            for ni, nn in enumerate(numbered, 1):
+                                print(f"    {ni}. {nn}")
+                            nums = input("  Enter numbers (e.g. 1,2): ").strip()
+                            selected = []
+                            for part in nums.split(","):
+                                try:
+                                    ix = int(part.strip()) - 1
+                                    if 0 <= ix < len(numbered):
+                                        selected.append(numbered[ix])
+                                except:
+                                    pass
+                            if selected:
+                                agent_names = selected
+                            break
+                        elif pick == "N":
+                            manual = input("  Enter droid name: ").strip()
+                            if manual:
+                                agent_names.append(manual)
+                            break
+                        else:
+                            print(f"  Enter {opts}.")
+
                 elif fw.get("detected"):
                     # Framework detected but no named agents found
                     print(f"\n  {menu_items[idx][1]} detected but no agent names found.")
