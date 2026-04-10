@@ -173,10 +173,10 @@ def get_next_step(key):
     return result
 
 
-def scan_for_agents():
-    """Auto-detect running AI agents on this machine."""
+def scan_for_agents(host="localhost"):
+    """Auto-detect running AI agents on a machine."""
     found = []
-    print("\n[scan] Scanning for running AI agents...")
+    print(f"\n[scan] Scanning {host} for running AI agents...")
 
     # Check common process patterns
     agent_patterns = [
@@ -343,18 +343,23 @@ def main():
     # Determine which agents to inject
     agent_names = []
 
-    if args.scan:
-        print("=" * 50)
-        print("  DroidSchool Auto-Detect")
-        print(f"  Operator: {args.operator}")
-        print("=" * 50)
+    print("=" * 50)
+    print(f"  DroidSchool Enrollment Wizard")
+    print(f"  Operator: {args.operator}")
+    print("=" * 50)
+
+    if args.name:
+        agent_names = [args.name]
+
+    elif args.names:
+        agent_names = [n.strip() for n in args.names.split(",") if n.strip()]
+
+    elif args.scan:
         scan_results = scan_for_agents()
         agent_names = extract_agent_names(scan_results)
-
         if not agent_names:
             print("\n[scan] No agent names detected. Use --name or --names instead.")
             sys.exit(1)
-
         print(f"\n[scan] Agents to enroll: {', '.join(agent_names)}")
         if not args.auto:
             confirm = input("Proceed with enrollment? [Y/n]: ").strip().lower()
@@ -362,24 +367,68 @@ def main():
                 print("Aborted.")
                 sys.exit(0)
 
-    elif args.names:
-        agent_names = [n.strip() for n in args.names.split(",") if n.strip()]
-        print("=" * 50)
-        print(f"  DroidSchool Batch Injection")
-        print(f"  Agents: {', '.join(agent_names)}")
-        print(f"  Operator: {args.operator}")
-        print("=" * 50)
-
-    elif args.name:
-        agent_names = [args.name]
-        print("=" * 50)
-        print(f"  DroidSchool Injection")
-        print(f"  Agent: {args.name}")
-        print(f"  Operator: {args.operator}")
-        print("=" * 50)
-
     else:
-        parser.error("Provide --name, --names, or --scan")
+        # Interactive mode — Step 3: S/N/M choice
+        print()
+        print("  [3/9] How would you like to find your AI agents?")
+        print()
+        print("    [S]  Scan this machine automatically")
+        print("    [N]  Scan a networked machine (enter IP address)")
+        print("    [M]  Enter droid name manually")
+        print()
+
+        while True:
+            choice = input("  Choice [S/N/M]: ").strip().upper()
+            if choice == "S":
+                print()
+                scan_results = scan_for_agents()
+                agent_names = extract_agent_names(scan_results)
+                if not agent_names:
+                    print("  No agents detected on this machine.")
+                    manual = input("  Enter droid name manually (or press Enter to skip): ").strip()
+                    if manual:
+                        agent_names.append(manual)
+                else:
+                    print(f"\n  Agents found: {', '.join(agent_names)}")
+                    if not args.auto:
+                        confirm = input("  Proceed with enrollment? [Y/n]: ").strip().lower()
+                        if confirm == "n":
+                            print("Aborted.")
+                            sys.exit(0)
+                break
+
+            elif choice == "N":
+                ip = input("  Enter IP address (e.g. 192.168.1.245): ").strip()
+                if ip:
+                    print()
+                    scan_results = scan_for_agents(host=ip)
+                    agent_names = extract_agent_names(scan_results)
+                    if not agent_names:
+                        print(f"  No agents detected on {ip}.")
+                        manual = input("  Enter droid name manually (or press Enter to skip): ").strip()
+                        if manual:
+                            agent_names.append(manual)
+                    else:
+                        print(f"\n  Agents found on {ip}: {', '.join(agent_names)}")
+                        if not args.auto:
+                            confirm = input("  Proceed with enrollment? [Y/n]: ").strip().lower()
+                            if confirm == "n":
+                                print("Aborted.")
+                                sys.exit(0)
+                break
+
+            elif choice == "M":
+                manual = input("  Enter droid name (e.g. ~my-agent): ").strip()
+                if manual:
+                    agent_names.append(manual)
+                break
+
+            else:
+                print("  Enter S, N, or M.")
+
+    if not agent_names:
+        print("\n[error] No agents to enroll.")
+        sys.exit(1)
 
     # Inject each agent
     results = []
