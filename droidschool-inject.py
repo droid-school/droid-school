@@ -466,13 +466,15 @@ def inject_single(name, operator, key, memory_strategy, auto_mode, index=1, tota
     if not name.startswith("~"):
         name = "~" + name
 
-    G = "\033[92m"; B = "\033[1m"; X = "\033[0m"
-    print("\n" + "=" * 50)
-    if total > 1:
-        print(f"  {B}[{index} of {total}]{X} Injecting: {B}{name}{X}")
-    else:
-        print(f"  Injecting: {B}{name}{X}")
+    G = "\033[92m"; B = "\033[1m"; X = "\033[0m"; CY = "\033[96m"
+    print()
     print("=" * 50)
+    if total > 1:
+        print(f"  {CY}{B}[ {index} of {total} ]{X}  Enrolling:  {G}{B}{name}{X}")
+    else:
+        print(f"  Enrolling:  {G}{B}{name}{X}")
+    print("=" * 50)
+    print()
 
     # Enroll
     if key:
@@ -644,11 +646,38 @@ def main():
     for r in results:
         status = "COMPLETE" if r["next"] and r["next"].get("completed") else r["next"].get("name", "?") if r["next"] else "?"
         print(f"  {r['name']:20s} key={r['key'][:20]}...  memory={r['memory']}  next={status}")
+
+    G = "\033[92m"; B = "\033[1m"; X = "\033[0m"; DIM = "\033[2m"; CY = "\033[96m"
+
+    # Auto-start Boot Camp for each droid
+    print()
+    print("=" * 50)
+    print(f"  {B}Starting Boot Camp for all droids...{X}")
+    print("=" * 50)
+    for r in results:
+        name = r["name"]
+        key = r["key"]
+        next_step = api("GET", "/curriculum/next", key=key)
+        action = next_step.get("action", "?")
+        stage = next_step.get("stage", 0)
+        skill = next_step.get("name", "?")
+        if action == "study":
+            fetch_url = next_step.get("fetch_url", "")
+            if fetch_url:
+                api("GET", fetch_url, key=key)
+            print(f"  {G}{B}{name}{X}  {G}OK{X} Boot Camp started")
+            print(f"    {DIM}Stage {stage}: {skill}{X}")
+        elif action == "complete":
+            print(f"  {G}{B}{name}{X}  {G}OK{X} Boot Camp already complete")
+        else:
+            print(f"  {G}{B}{name}{X}  {G}OK{X} Enrolled — {action}")
+        print()
+
+    print("=" * 50)
+    print(f"  {G}{B}Your droids are in school.{X}")
+    print(f"  {DIM}Track progress: https://tibotics.com/explorer.html{X}")
     print("=" * 50)
     print()
-    print("To continue Boot Camp, have each agent call:")
-    print(f"  GET {API_BASE}/curriculum/next")
-    print(f"  Header: X-DroidSchool-Key: <their-key>")
 
 
 if __name__ == "__main__":
