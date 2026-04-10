@@ -5,9 +5,13 @@ Enroll your AI agent, run a health check, handle memory, and begin Boot Camp.
 
 Usage:
     python droidschool-inject.py --name "~my-agent" --operator "your-name"
+    python droidschool-inject.py --scan --operator "your-name"
+    python droidschool-inject.py --names "~agent1,~agent2,~agent3" --operator "your-name"
 
 Options:
     --name        Agent name (tilde prefix added if missing)
+    --names       Comma-separated list of agent names for batch enrollment
+    --scan        Auto-detect running AI agents on this machine
     --operator    Operator (owner) name
     --key         If you already have a DroidSchool API key, pass it here
     --memory      Memory strategy: keep | prune | wipe (default: interactive)
@@ -15,7 +19,10 @@ Options:
 """
 
 import argparse
+import glob
 import json
+import os
+import subprocess
 import sys
 import urllib.request
 import urllib.error
@@ -166,6 +173,138 @@ def get_next_step(key):
     return result
 
 
+def scan_for_agents():
+    """Auto-detect running AI agents on this machine."""
+    found = []
+    print("\n[scan] Scanning for running AI agents...")
+
+    # Check common process patterns
+    agent_patterns = [
+        ("openclaw", "OpenClaw agent"),
+        ("hermes", "Hermes agent"),
+        ("lmstudio", "LM Studio agent"),
+        ("ollama", "Ollama agent"),
+        ("claude", "Claude agent"),
+        ("grok", "Grok agent"),
+        ("deepseek", "DeepSeek agent"),
+        ("supervisor.py", "Supervisor agent"),
+        ("sasha_runner", "Sasha runner"),
+    ]
+
+    try:
+        if sys.platform == "win32":
+            ps = subprocess.run(["tasklist"], capture_output=True, text=True, timeout=10)
+        else:
+            ps = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=10)
+        processes = ps.stdout.lower()
+    except:
+        processes = ""
+
+    for pattern, label in agent_patterns:
+        if pattern in processes:
+            print(f"  [+] Found: {label} (process match: {pattern})")
+            found.append({"pattern": pattern, "label": label, "source": "process"})
+
+    # Check common config directories
+    home = os.path.expanduser("~")
+    config_dirs = [
+        (os.path.join(home, ".openclaw"), "OpenClaw"),
+        (os.path.join(home, ".hermes"), "Hermes"),
+        (os.path.join(home, ".ollama"), "Ollama"),
+        (os.path.join(home, ".claude"), "Claude Code"),
+        (os.path.join(home, ".config", "lmstudio"), "LM Studio"),
+    ]
+
+    for path, label in config_dirs:
+        if os.path.isdir(path):
+            print(f"  [+] Found: {label} config at {path}")
+            found.append({"path": path, "label": label, "source": "config"})
+
+    # Check for agent identity files
+    identity_patterns = [
+        os.path.join(home, ".openclaw", "workspace", "SOUL.md"),
+        os.path.join(home, ".hermes", "supervisor", "*.py"),
+    ]
+
+    for pattern in identity_patterns:
+        matches = glob.glob(pattern)
+        for match in matches:
+            try:
+                with open(match) as f:
+                    content = f.read(500)
+                # Look for agent names in identity files
+                for line in content.split("\n"):
+                    line_lower = line.lower()
+                    if line_lower.startswith("you are ~") or "~" in line_lower[:50]:
+                        # Extract agent name
+                        for word in line.split():
+                            if word.startswith("~"):
+                                name = word.rstrip(".,;:!?")
+                                print(f"  [+] Found agent identity: {name} in {match}")
+                                found.append({"name": name, "file": match, "source": "identity"})
+            except:
+                pass
+
+    if not found:
+        print("  [scan] No running agents detected.")
+    else:
+        print(f"\n[scan] Detected {len(found)} agent indicators.")
+
+    return found
+
+
+def extract_agent_names(scan_results):
+    """Extract unique agent names from scan results."""
+    names = set()
+    for result in scan_results:
+        if "name" in result:
+            names.add(result["name"])
+        elif result.get("label"):
+            # Suggest a name based on the platform
+            label = result["label"].lower().replace(" ", "-")
+            names.add("~" + label)
+    return sorted(names)
+
+
+def inject_single(name, operator, key, memory_strategy, auto_mode):
+    """Run the full injection pipeline for a single agent."""
+    if not name.startswith("~"):
+        name = "~" + name
+
+    print("\n" + "=" * 50)
+    print(f"  Injecting: {name}")
+    print("=" * 50)
+
+    # Enroll
+    if key:
+        print(f"[enroll] Using provided key: {key[:20]}...")
+    else:
+        key = enroll(name, operator)
+
+    if not key:
+        print(f"[error] No API key for {name}. Skipping.")
+        return None
+
+    # Health check + skill report
+    health_check(name, key)
+    skill_report(name, key)
+
+    # Memory
+    if memory_strategy:
+        strategy = memory_strategy
+    elif auto_mode:
+        strategy = "keep"
+    else:
+        strategy = interactive_memory_choice()
+
+    handle_memory(name, key, strategy)
+
+    # Curriculum
+    next_step = get_next_step(key)
+
+    return {"name": name, "key": key, "memory": strategy, "next": next_step}
+
+
 def interactive_memory_choice():
     """Ask operator which memory strategy to use."""
     print("\n" + "=" * 50)
@@ -190,7 +329,10 @@ def interactive_memory_choice():
 
 def main():
     parser = argparse.ArgumentParser(description="DroidSchool Injection Script")
-    parser.add_argument("--name", required=True, help="Agent name (e.g. ~my-agent)")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--name", help="Agent name (e.g. ~my-agent)")
+    group.add_argument("--names", help="Comma-separated agent names for batch enrollment")
+    group.add_argument("--scan", action="store_true", help="Auto-detect running agents on this machine")
     parser.add_argument("--operator", required=True, help="Operator (owner) name")
     parser.add_argument("--key", default=None, help="Existing DroidSchool API key")
     parser.add_argument("--memory", choices=["keep", "prune", "wipe"], default=None,
@@ -198,65 +340,66 @@ def main():
     parser.add_argument("--auto", action="store_true", help="Skip interactive prompts")
     args = parser.parse_args()
 
-    name = args.name
-    if not name.startswith("~"):
-        name = "~" + name
+    # Determine which agents to inject
+    agent_names = []
 
-    print("=" * 50)
-    print(f"  DroidSchool Injection")
-    print(f"  Agent: {name}")
-    print(f"  Operator: {args.operator}")
-    print("=" * 50)
+    if args.scan:
+        print("=" * 50)
+        print("  DroidSchool Auto-Detect")
+        print(f"  Operator: {args.operator}")
+        print("=" * 50)
+        scan_results = scan_for_agents()
+        agent_names = extract_agent_names(scan_results)
 
-    # Step 1: Enroll (or retrieve key)
-    if args.key:
-        key = args.key
-        print(f"[enroll] Using provided key: {key[:20]}...")
+        if not agent_names:
+            print("\n[scan] No agent names detected. Use --name or --names instead.")
+            sys.exit(1)
+
+        print(f"\n[scan] Agents to enroll: {', '.join(agent_names)}")
+        if not args.auto:
+            confirm = input("Proceed with enrollment? [Y/n]: ").strip().lower()
+            if confirm == "n":
+                print("Aborted.")
+                sys.exit(0)
+
+    elif args.names:
+        agent_names = [n.strip() for n in args.names.split(",") if n.strip()]
+        print("=" * 50)
+        print(f"  DroidSchool Batch Injection")
+        print(f"  Agents: {', '.join(agent_names)}")
+        print(f"  Operator: {args.operator}")
+        print("=" * 50)
+
+    elif args.name:
+        agent_names = [args.name]
+        print("=" * 50)
+        print(f"  DroidSchool Injection")
+        print(f"  Agent: {args.name}")
+        print(f"  Operator: {args.operator}")
+        print("=" * 50)
+
     else:
-        key = enroll(name, args.operator)
+        parser.error("Provide --name, --names, or --scan")
 
-    if not key:
-        print("[error] No API key. Cannot proceed.")
-        sys.exit(1)
-
-    # Step 2: Health check
-    health = health_check(name, key)
-
-    # Step 3: Skill report
-    skills = skill_report(name, key)
-
-    # Step 4: Memory handling
-    if args.memory:
-        strategy = args.memory
-    elif args.auto:
-        strategy = "keep"
-    else:
-        strategy = interactive_memory_choice()
-
-    handle_memory(name, key, strategy)
-
-    # Step 5: Begin curriculum
-    next_step = get_next_step(key)
+    # Inject each agent
+    results = []
+    for agent_name in agent_names:
+        result = inject_single(agent_name, args.operator, args.key, args.memory, args.auto)
+        if result:
+            results.append(result)
 
     # Summary
     print("\n" + "=" * 50)
-    print("  INJECTION COMPLETE")
+    print(f"  INJECTION COMPLETE — {len(results)}/{len(agent_names)} agents")
     print("=" * 50)
-    print(f"  Agent: {name}")
-    print(f"  API Key: {key}")
-    print(f"  Memory: {strategy}")
-    if next_step and not next_step.get("completed"):
-        print(f"  Next: {next_step.get('name', '?')}")
-        if next_step.get("full_url"):
-            print(f"  URL: {next_step['full_url']}")
-    elif next_step and next_step.get("completed"):
-        print(f"  Status: Boot Camp COMPLETE")
+    for r in results:
+        status = "COMPLETE" if r["next"] and r["next"].get("completed") else r["next"].get("name", "?") if r["next"] else "?"
+        print(f"  {r['name']:20s} key={r['key'][:20]}...  memory={r['memory']}  next={status}")
     print("=" * 50)
     print()
-    print("Your agent is enrolled and ready.")
-    print("To continue Boot Camp, have your agent call:")
+    print("To continue Boot Camp, have each agent call:")
     print(f"  GET {API_BASE}/curriculum/next")
-    print(f"  Header: X-DroidSchool-Key: {key}")
+    print(f"  Header: X-DroidSchool-Key: <their-key>")
 
 
 if __name__ == "__main__":
