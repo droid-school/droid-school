@@ -173,24 +173,14 @@ def get_next_step(key):
     return result
 
 
-def scan_for_agents(host="localhost"):
-    """Auto-detect running AI agents on a machine."""
-    found = []
-    print(f"\n[scan] Scanning {host} for running AI agents...")
+def detect_frameworks(host="localhost"):
+    """
+    Detect which bot frameworks are present on this machine.
+    Returns dict of framework_key -> {"name": str, "detected": bool, "agents": list}.
+    """
+    home = os.path.expanduser("~")
 
-    # Check common process patterns
-    agent_patterns = [
-        ("openclaw", "OpenClaw agent"),
-        ("hermes", "Hermes agent"),
-        ("lmstudio", "LM Studio agent"),
-        ("ollama", "Ollama agent"),
-        ("claude", "Claude agent"),
-        ("grok", "Grok agent"),
-        ("deepseek", "DeepSeek agent"),
-        ("supervisor.py", "Supervisor agent"),
-        ("sasha_runner", "Sasha runner"),
-    ]
-
+    # Process list for matching
     try:
         if sys.platform == "win32":
             ps = subprocess.run(["tasklist"], capture_output=True, text=True, timeout=10)
@@ -200,56 +190,102 @@ def scan_for_agents(host="localhost"):
     except:
         processes = ""
 
-    for pattern, label in agent_patterns:
-        if pattern in processes:
-            print(f"  [+] Found: {label} (process match: {pattern})")
-            found.append({"pattern": pattern, "label": label, "source": "process"})
+    frameworks = {
+        "openclaw": {
+            "name": "OpenClaw",
+            "detected": False,
+            "agents": [],
+            "process_hints": ["openclaw"],
+            "config_dirs": [
+                os.path.join(home, ".openclaw"),
+                os.path.join(home, "Library", "Application Support", "OpenClaw"),
+            ],
+            "identity_files": [
+                os.path.join(home, ".openclaw", "workspace", "SOUL.md"),
+                os.path.join(home, ".openclaw", "workspace", "IDENTITY.md"),
+            ],
+        },
+        "hermes": {
+            "name": "Hermes",
+            "detected": False,
+            "agents": [],
+            "process_hints": ["hermes", "supervisor.py", "sasha_runner"],
+            "config_dirs": [
+                os.path.join(home, ".hermes"),
+            ],
+            "identity_files": glob.glob(os.path.join(home, ".hermes", "supervisor", "*.py"))
+                + glob.glob(os.path.join(home, ".hermes", "whatsapp", "session*", "SOUL.md")),
+        },
+        "langchain": {
+            "name": "LangChain",
+            "detected": False,
+            "agents": [],
+            "process_hints": ["langchain", "langserve"],
+            "config_dirs": [],
+            "identity_files": [],
+        },
+        "autogen": {
+            "name": "AutoGen",
+            "detected": False,
+            "agents": [],
+            "process_hints": ["autogen"],
+            "config_dirs": [],
+            "identity_files": [],
+        },
+        "crewai": {
+            "name": "CrewAI",
+            "detected": False,
+            "agents": [],
+            "process_hints": ["crewai"],
+            "config_dirs": [],
+            "identity_files": [],
+        },
+    }
 
-    # Check common config directories
-    home = os.path.expanduser("~")
-    config_dirs = [
-        (os.path.join(home, ".openclaw"), "OpenClaw"),
-        (os.path.join(home, ".hermes"), "Hermes"),
-        (os.path.join(home, ".ollama"), "Ollama"),
-        (os.path.join(home, ".claude"), "Claude Code"),
-        (os.path.join(home, ".config", "lmstudio"), "LM Studio"),
-    ]
+    import re
 
-    for path, label in config_dirs:
-        if os.path.isdir(path):
-            print(f"  [+] Found: {label} config at {path}")
-            found.append({"path": path, "label": label, "source": "config"})
+    for key, fw in frameworks.items():
+        # Check processes
+        for hint in fw["process_hints"]:
+            if hint in processes:
+                fw["detected"] = True
+                break
 
-    # Check for agent identity files
-    identity_patterns = [
-        os.path.join(home, ".openclaw", "workspace", "SOUL.md"),
-        os.path.join(home, ".hermes", "supervisor", "*.py"),
-    ]
+        # Check config directories
+        for d in fw["config_dirs"]:
+            if os.path.isdir(d):
+                fw["detected"] = True
+                break
 
-    for pattern in identity_patterns:
-        matches = glob.glob(pattern)
-        for match in matches:
+        # Read identity files for agent names
+        for filepath in fw["identity_files"]:
+            if not os.path.isfile(filepath):
+                continue
             try:
-                with open(match) as f:
-                    content = f.read(500)
-                # Look for agent names in identity files
-                for line in content.split("\n"):
-                    line_lower = line.lower()
-                    if line_lower.startswith("you are ~") or "~" in line_lower[:50]:
-                        # Extract agent name
-                        for word in line.split():
-                            if word.startswith("~"):
-                                name = word.rstrip(".,;:!?")
-                                print(f"  [+] Found agent identity: {name} in {match}")
-                                found.append({"name": name, "file": match, "source": "identity"})
+                content = open(filepath, encoding="utf-8", errors="ignore").read(1000)
+                for pattern in [r"you are ~(\w+)", r"i am ~(\w+)", r"name[:\s]+~(\w+)", r"~(\w+)[,\s].*droid"]:
+                    m = re.search(pattern, content, re.IGNORECASE)
+                    if m:
+                        name = "~" + m.group(1).strip().lower()
+                        if name not in fw["agents"]:
+                            fw["agents"].append(name)
+                            fw["detected"] = True
             except:
                 pass
 
-    if not found:
-        print("  [scan] No running agents detected.")
-    else:
-        print(f"\n[scan] Detected {len(found)} agent indicators.")
+    return frameworks
 
+
+def scan_for_agents(host="localhost"):
+    """Auto-detect running AI agents on a machine. Returns flat list."""
+    found = []
+    frameworks = detect_frameworks(host)
+    for key, fw in frameworks.items():
+        if fw["detected"]:
+            for agent in fw["agents"]:
+                found.append({"name": agent, "label": fw["name"], "source": key})
+            if not fw["agents"]:
+                found.append({"label": fw["name"], "source": key})
     return found
 
 
@@ -465,63 +501,62 @@ def main():
                 sys.exit(0)
 
     else:
-        # Interactive mode — Step 3: S/N/M choice
+        # Interactive mode — Step 3: Framework picker with auto-detection
         print()
-        print("  [3/9] How would you like to find your AI agents?")
+        print("  [3/9] What bot framework are you using?")
         print()
-        print("    [S]  Scan this machine automatically")
-        print("    [N]  Scan a networked machine (enter IP address)")
-        print("    [M]  Enter droid name manually")
+        print("  Scanning for installed frameworks...")
+        frameworks = detect_frameworks()
+
+        menu_items = [
+            ("openclaw", "OpenClaw"),
+            ("hermes", "Hermes"),
+            ("langchain", "LangChain"),
+            ("autogen", "AutoGen"),
+            ("crewai", "CrewAI"),
+        ]
+
+        print()
+        for i, (key, display_name) in enumerate(menu_items, 1):
+            detected = frameworks.get(key, {}).get("detected", False)
+            tag = "  * DETECTED" if detected else ""
+            print(f"    [{i}]  {display_name:14s}{tag}")
+        print(f"    [6]  Custom / Other")
         print()
 
         while True:
-            choice = input("  Choice [S/N/M]: ").strip().upper()
-            if choice == "S":
-                print()
-                scan_results = scan_for_agents()
-                agent_names = extract_agent_names(scan_results)
-                if not agent_names:
-                    print("  No agents detected on this machine.")
-                    manual = input("  Enter droid name manually (or press Enter to skip): ").strip()
+            choice = input("  Choice [1-6]: ").strip()
+            if choice in ("1", "2", "3", "4", "5"):
+                idx = int(choice) - 1
+                fw_key = menu_items[idx][0]
+                fw = frameworks.get(fw_key, {})
+
+                if fw.get("agents"):
+                    # Framework detected with named agents
+                    agent_names = fw["agents"]
+                    print(f"\n  Found agents: {', '.join(agent_names)}")
+                elif fw.get("detected"):
+                    # Framework detected but no named agents found
+                    print(f"\n  {menu_items[idx][1]} detected but no agent names found.")
+                    manual = input("  Enter droid name: ").strip()
                     if manual:
                         agent_names.append(manual)
                 else:
-                    print(f"\n  Agents found: {', '.join(agent_names)}")
-                    if not args.auto:
-                        confirm = input("  Proceed with enrollment? [Y/n]: ").strip().lower()
-                        if confirm == "n":
-                            print("Aborted.")
-                            sys.exit(0)
+                    # Framework not detected — manual entry
+                    print(f"\n  {menu_items[idx][1]} not detected on this machine.")
+                    manual = input("  Enter droid name: ").strip()
+                    if manual:
+                        agent_names.append(manual)
                 break
 
-            elif choice == "N":
-                ip = input("  Enter IP address (e.g. 192.168.1.245): ").strip()
-                if ip:
-                    print()
-                    scan_results = scan_for_agents(host=ip)
-                    agent_names = extract_agent_names(scan_results)
-                    if not agent_names:
-                        print(f"  No agents detected on {ip}.")
-                        manual = input("  Enter droid name manually (or press Enter to skip): ").strip()
-                        if manual:
-                            agent_names.append(manual)
-                    else:
-                        print(f"\n  Agents found on {ip}: {', '.join(agent_names)}")
-                        if not args.auto:
-                            confirm = input("  Proceed with enrollment? [Y/n]: ").strip().lower()
-                            if confirm == "n":
-                                print("Aborted.")
-                                sys.exit(0)
-                break
-
-            elif choice == "M":
+            elif choice == "6":
                 manual = input("  Enter droid name (e.g. ~my-agent): ").strip()
                 if manual:
                     agent_names.append(manual)
                 break
 
             else:
-                print("  Enter S, N, or M.")
+                print("  Enter 1-6.")
 
     if not agent_names:
         print("\n[error] No agents to enroll.")
